@@ -35,7 +35,6 @@ async function onPageLoad() {
 function setupClickHandlers() {
 	document.addEventListener('click', function(event) {
 		const { target } = event
-		console.log(target)
 
 		// Race track form field
 		if (target.matches('.card.track')) {
@@ -44,7 +43,6 @@ function setupClickHandlers() {
 
 		// Podracer form field
 		if (target.matches('.card.podracer')) {
-			console.log('called')
 			handleSelectPodRacer(target)
 		}
 
@@ -79,37 +77,27 @@ async function handleCreateRace() {
 	// render starting UI
 	renderAt('#race', renderRaceStartView(store.track_id))
 
-	// TODO - Get player_id and track_id from the store
 	const { player_id, track_id } = store;
 	
 	// const race = TODO - invoke the API call to create the race, then save the result
 	const race = await createRace(player_id, track_id)
-	console.log(race)	
 
-	// TODO - update the store with the race id
 	store = {
 		...store,
-		race_id: race.ID
+		race_id: race.ID - 1
 	}
 
 	// The race has been created, now start the countdown
-	// TODO - call the async function runCountdown
 	await runCountdown()
-	await startRace(race.ID - 1)
-	await runRace(race.ID - 1)
-
-	// TODO - call the async function startRace
-
-	// TODO - call the async function runRace
-	// await Promise.allSettled([runCountdown, startRace(race.ID), runRace(race.ID)])
+	await startRace(store.race_id)
+	await runRace(store.race_id)
 }
 
 function runRace(raceID) {
 	return new Promise(resolve => {
-	// TODO - use Javascript's built in setInterval method to get race info every 500ms
-	const raceInterval = setInterval(() => {
-		getRace(raceID)
-			.then(res => {
+		const raceInterval = setInterval(async () => {
+			try {
+				const res = await getRace(raceID);
 				if (res.status === 'in-progress') {
 					renderAt('#leaderBoard', raceProgress(res.positions))
 				} else if (res.status === 'finished') {
@@ -117,24 +105,11 @@ function runRace(raceID) {
 					renderAt('#race', resultsView(res.positions));
 					resolve(res);
 				}
-			})		
-	}, 500)
-
-	/* 
-		TODO - if the race info status property is "in-progress", update the leaderboard by calling:
-
-		renderAt('#leaderBoard', raceProgress(res.positions))
-	*/
-
-	/* 
-		TODO - if the race info status property is "finished", run the following:
-
-		clearInterval(raceInterval) // to stop the interval from repeating
-		renderAt('#race', resultsView(res.positions)) // to render the results view
-		reslove(res) // resolve the promise
-	*/
+			} catch(_) {
+				console.log('an error occured while running the race!')
+			}
+		}, 500)
 	})
-	// remember to add error handling for the Promise
 }
 
 async function runCountdown() {
@@ -147,14 +122,12 @@ async function runCountdown() {
 			// TODO - use Javascript's built in setInterval method to count down once per second
 			const id = setInterval(() => {
 				timer = timer - 1;
-				console.log(timer)
 				document.getElementById('big-numbers').innerHTML = timer;
 				if (timer === 0) {
 					clearInterval(id);
 					resolve()
 				}
 			}, 1000)
-			// TODO - if the countdown is done, clear the interval, resolve the promise, and return
 		})
 	} catch(error) {
 		console.log(error);
@@ -162,9 +135,6 @@ async function runCountdown() {
 }
 
 function handleSelectPodRacer(target) {
-	console.log('called2')
-	console.log("selected a pod", target.id)
-
 	// remove class selected from all racer options
 	const selected = document.querySelector('#racers .selected')
 	if(selected) {
@@ -173,18 +143,13 @@ function handleSelectPodRacer(target) {
 
 	// add class selected to current target
 	target.classList.add('selected')
-	console.log(target.id)
 	store = {
 		...store,
 		player_id: target.id
 	};
-
-	// TODO - save the selected racer to the store
 }
 
 function handleSelectTrack(target) {
-	console.log("selected a track", target.id)
-
 	// remove class selected from all track options
 	const selected = document.querySelector('#tracks .selected')
 	if(selected) {
@@ -194,7 +159,6 @@ function handleSelectTrack(target) {
 	// add class selected to current target
 	target.classList.add('selected')
 
-	// TODO - save the selected track id to the store
 	store = {
 		...store,
 		track_id: target.id
@@ -202,16 +166,18 @@ function handleSelectTrack(target) {
 	
 }
 
-function handleAccelerate() {
-	console.log("accelerate button clicked")
-	// TODO - Invoke the API call to accelerate
+async function handleAccelerate() {
+	try {
+		await accelerate(store.race_id);
+	} catch(e) {
+		console.log('error while trying to accelerate');
+	}
 }
 
 // HTML VIEWS ------------------------------------------------
 // Provided code - do not remove
 
 function renderRacerCars(racers) {
-	console.log(racers)
 	if (!racers.length) {
 		return `
 			<h4>Loading Racers...</4>
@@ -229,7 +195,6 @@ function renderRacerCars(racers) {
 }
 
 function renderRacerCard(racer) {
-	console.log(racer)
 	const { id, driver_name, top_speed, acceleration, handling } = racer
 
 	return `
@@ -359,7 +324,6 @@ function defaultFetchOpts() {
 	}
 }
 
-// TODO - Make a fetch call (with error handling!) to each of the following API endpoints 
 
 function getTracks() {
 	// GET request to `${SERVER}/api/tracks`
@@ -382,8 +346,6 @@ function getRacers() {
 }
 
 function createRace(player_id, track_id) {
-	console.log(player_id)
-	console.log(track_id)
 	player_id = parseInt(player_id)
 	track_id = parseInt(track_id)
 	const body = { player_id, track_id }
@@ -400,7 +362,7 @@ function createRace(player_id, track_id) {
 
 function getRace(id) {
 	// GET request to `${SERVER}/api/races/${id}`
-	return fetch(`${SERVER}/api/races/${id - 1}`, {
+	return fetch(`${SERVER}/api/races/${id}`, {
 		dataType: 'jsonp',
 		...defaultFetchOpts()
 	})
@@ -420,10 +382,9 @@ function accelerate(id) {
 	// POST request to `${SERVER}/api/races/${id}/accelerate`
 	// options parameter provided as defaultFetchOpts
 	// no body or datatype needed for this request
-	return fetch(`${SERVER}/api/races/${id - 1}/accelerate`, {
+	return fetch(`${SERVER}/api/races/${id}/accelerate`, {
 		method: 'POST',
 		...defaultFetchOpts()
 	})
-	.then(res => res.json())
 	.catch(err => console.log("Problem with accelerate request::", err))
 }
