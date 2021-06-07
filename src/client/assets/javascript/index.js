@@ -79,7 +79,6 @@ async function handleCreateRace() {
 
 	const { player_id, track_id } = store;
 	
-	// const race = TODO - invoke the API call to create the race, then save the result
 	const race = await createRace(player_id, track_id)
 
 	store = {
@@ -119,7 +118,6 @@ async function runCountdown() {
 		let timer = 3
 
 		return new Promise(resolve => {
-			// TODO - use Javascript's built in setInterval method to count down once per second
 			const id = setInterval(() => {
 				timer = timer - 1;
 				document.getElementById('big-numbers').innerHTML = timer;
